@@ -129,7 +129,7 @@ def run_nuke(target_id, trades_count, channel, progress_bar, status_text):
 
 st.set_page_config(page_title="Portable Nuke", page_icon="💣", layout="wide")
 
-st.title("Game Account Nuke Tool - advantex.")
+st.title("Game Account Nuke Tool")
 st.markdown("---")
 
 
@@ -173,4 +173,4 @@ if stop_button:
     st.warning("Stopping...")
 
 st.markdown("---")
-st.markdown("*Make sure Allids.txt is in the same directory*")
+st.markdown("*Made for Discord.gg/CaseOpener - advantex. - 06/06/26")
