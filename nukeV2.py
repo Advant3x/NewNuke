@@ -127,12 +127,11 @@ def run_nuke(target_id, trades_count, channel, progress_bar, status_text):
     progress_bar.progress(1.0)
     st.session_state.is_running = False
 
-st.set_page_config(page_title="Game Nuke Tool", page_icon="💣", layout="wide")
+st.set_page_config(page_title="Portable Nuke", page_icon="💣", layout="wide")
 
-st.title("💣 Game Account Nuke Tool")
+st.title("Game Account Nuke Tool - advantex.")
 st.markdown("---")
 
-st.warning("⚠️ **DISCLAIMER**: For educational purposes only. Use at your own risk.")
 
 col1, col2 = st.columns(2)
 
