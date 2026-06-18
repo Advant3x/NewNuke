@@ -6,6 +6,24 @@ import time
 
 PRICESHASH = "fbd9aec4384456124c0765581a4ba099"
 
+# Global headers for all requests
+HEADERS = {
+    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+    'Accept': 'application/json',
+    'Accept-Encoding': 'gzip, deflate, br',
+    'Connection': 'keep-alive',
+    'Content-Type': 'application/json'
+}
+
+# Headers for form data (POST requests)
+FORM_HEADERS = {
+    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+    'Accept': 'application/json',
+    'Accept-Encoding': 'gzip, deflate, br',
+    'Connection': 'keep-alive',
+    'Content-Type': 'application/x-www-form-urlencoded'
+}
+
 if 'is_running' not in st.session_state:
     st.session_state.is_running = False
 if 'stop_flag' not in st.session_state:
@@ -28,7 +46,7 @@ def send_message(id, text, channel):
     try:
         req = "https://api.efezgames.com/v1/social/sendChat?playerID={ID}&token={token}&message={msg}&chan={chan}"
         request = req.format(ID=id, token="01122", msg=text, chan=channel)
-        response = requests.get(request, timeout=10)
+        response = requests.get(request, headers=HEADERS, timeout=10)
         return response.json()
     except Exception as e:
         return None
@@ -46,7 +64,7 @@ def clear_acc(target_id):
             "description": "<color=red><size=100>rip",
             "token": "01122",
         }
-        response = requests.post(url=req, data=myobj, timeout=10)
+        response = requests.post(url=req, data=myobj, headers=FORM_HEADERS, timeout=10)
         return response.text
     except Exception as e:
         return None
@@ -72,7 +90,7 @@ def create_trade(sender_id, receiver_id, message_text, message_index):
                              SKINSREQUESTED=skin,
                              PRICESHASH=PRICESHASH,
                              MESSAGE=msg)
-        response = requests.get(request, timeout=10)
+        response = requests.get(request, headers=HEADERS, timeout=10)
         return response.json()
     except Exception:
         return {"success": False}
